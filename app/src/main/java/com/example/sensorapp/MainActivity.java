@@ -55,7 +55,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     private static final String brokerUrl = "tcp://industrial.api.ubidots.com:1883";
     private final String topic     = "/v1.6/devices/demo";
-    private final String username = "BBFF-1JqfTssS9ahAMFooRmXHTWUOSFIoSZ";
+    private final String username = "";
     private final String password = "";
     private final String deviceLabel = "demo";
     private final String variableLabel = "new-variable";
@@ -63,6 +63,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     String payload       = "{\"" + variableLabel + "\": " + testValue + "}";
 
     int qos=0;
+
+    double normalBolge = 40.002200;
+    double tehlikeliBolge = 40.002300;
 
 
     MqttAndroidClient client;
@@ -130,20 +133,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                     Toast.makeText(getApplicationContext(),"Bağlantı gerçekleşti.",Toast.LENGTH_SHORT).show();
                     try {
 
-
-                    //    client.publish(topic, payload.getBytes(), qos, false);
-
-
-
-
-
-
-
-
-                        //tüm verilere subscribe için /v1.6/devices/{cihaz-ismi}
-                        //tek veriye subscribe için /v1.6/devices/{cihaz-ismi}/{label}
-                        //context (gps gibi) verileri değil sadece değerini
-                        //almak için /v1.6/devices/{cihaz-ismi}/{label}/lv
                         client.subscribe("/v1.6/devices/demo/new-variable", 0);
                         System.out.println("veri gitti");
 
@@ -195,20 +184,36 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
        SimpleDateFormat sdf = new SimpleDateFormat("kk:mm");
        String time = sdf.format(date);
        JSONObject obj = new JSONObject();
+       String lng = new DecimalFormat("##.######").format(location.getLongitude());
+       String lat = new DecimalFormat("##.######").format(location.getLatitude());
 
        try {
 
-           obj.put("Latitude", location.getLatitude());
-           obj.put("Longitude", location.getLongitude());
+           obj.put("Latitude", lat);
+           obj.put("Longitude", lng);
 
-         //  String a =
+
            int sensorValue = (int) (Math.random()*49+1);
 
            String variable       = "{\"" + variableLabel + "\": ";
            String context = " {\"value\": "+ sensorValue + ", \"context\":";
-      //     String value        = "{\"" + sensorValue + ":  {\"lon"""+location.getLongitude()+"\":               }";
-String x = variable + context + obj +"}}";
+           String x = variable + context + obj +"}}";
+
            System.out.print(x);
+
+
+           Double lati = Double.parseDouble(lat);
+
+           if(lati >= normalBolge && lati <= tehlikeliBolge){
+
+
+
+           }
+
+
+
+
+
 
            MqttMessage mqttMessage = new MqttMessage();
            mqttMessage.setPayload(x.getBytes());
@@ -218,7 +223,7 @@ String x = variable + context + obj +"}}";
            e.printStackTrace();
        }
 
-       System.out.println("veri gidiyor");
+
 
 
     }
@@ -240,7 +245,7 @@ String x = variable + context + obj +"}}";
             }
 
 
-        } else {// you can add more location
+        } else {
             loglist.add(dFormat.format(location.getLatitude()) + ",+" + dFormat.format(location.getLongitude()) + "," + time);
             try {
                 JSONArray jArry = new JSONArray();
@@ -268,6 +273,8 @@ String x = variable + context + obj +"}}";
         SimpleDateFormat sdf = new SimpleDateFormat("kk:mm");
         String time = sdf.format(date);
         Location location = null;
+
+
 
         String [] toJson = line.split(" ");
 
