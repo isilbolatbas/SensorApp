@@ -4,6 +4,7 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
+import android.location.Address;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -45,18 +46,22 @@ import com.ubidots.*;
 public class MainActivity extends AppCompatActivity implements LocationListener {
 
     Button butonSensor;
+    Button buttonM;
     TextView konum;
     LocationManager locationManager;
     List<String> loglist = new ArrayList<String>();
 
+
+
     private static final String brokerUrl = "tcp://industrial.api.ubidots.com:1883";
     private final String topic     = "/v1.6/devices/demo";
-    private final String username = "1JqfTssS9ahAMFooRmXHTWUOSFIoSZ";
+    private final String username = "BBFF-1JqfTssS9ahAMFooRmXHTWUOSFIoSZ";
     private final String password = "";
     private final String deviceLabel = "demo";
     private final String variableLabel = "new-variable";
     String testValue     = "11";
     String payload       = "{\"" + variableLabel + "\": " + testValue + "}";
+
     int qos=0;
 
 
@@ -68,6 +73,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
         butonSensor = findViewById(R.id.buton1);
         konum = findViewById(R.id.textView1);
+        buttonM =findViewById(R.id.buttonMqtt);
+
+
+
 
         butonSensor.setOnClickListener(new View.OnClickListener() {
 
@@ -98,7 +107,11 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
             }
         });
+
     }
+
+
+
 
     void connectmqtt(){
 
@@ -106,6 +119,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         MqttConnectOptions options = new MqttConnectOptions();
         options.setUserName(username);
         options.setPassword(password.toCharArray());
+
         try {
 
             IMqttToken token = client.connect(options);
@@ -115,12 +129,23 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                     // We are connected
                     Toast.makeText(getApplicationContext(),"Bağlantı gerçekleşti.",Toast.LENGTH_SHORT).show();
                     try {
+
+
+                    //    client.publish(topic, payload.getBytes(), qos, false);
+
+
+
+
+
+
+
+
                         //tüm verilere subscribe için /v1.6/devices/{cihaz-ismi}
                         //tek veriye subscribe için /v1.6/devices/{cihaz-ismi}/{label}
                         //context (gps gibi) verileri değil sadece değerini
                         //almak için /v1.6/devices/{cihaz-ismi}/{label}/lv
                         client.subscribe("/v1.6/devices/demo/new-variable", 0);
-
+                        System.out.println("veri gitti");
 
                     } catch (MqttException e) {
                         e.printStackTrace();
@@ -142,17 +167,12 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
 
 
-
-
-
-
-
-
     void getLocation() {
-        try {
+     try {
             locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 6000, 1, this);
             locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 3600, 3600, this);
+
         } catch (SecurityException e) {
 
             e.printStackTrace();
@@ -164,31 +184,42 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     public void onLocationChanged(Location location) {
         konum.setText("Current Location: " + location.getLatitude() + ", " + location.getLongitude());
         getList(location);
+        publish(location);
 
     }
-    public void publish(){
+   public void publish(Location location){
         //Ubidots için topic: /v1.6/devices/{cihaz-ismi}
-        String topic = "/v1.6/devices/demo";
-        JSONObject obj = new JSONObject();
-        Date date = new Date();
-        SimpleDateFormat sdf = new SimpleDateFormat("kk:mm");
-        String time = sdf.format(date);
-        Location location = null;
-         byte[] dataUbidotsString = new byte[0];
+       String topic = "/v1.6/devices/demo";
 
-        try {
-            obj.put("Latitude", location.getLatitude());
-            obj.put("Longitude", location.getLongitude());
-            obj.put("Time", time);
-            dataUbidotsString = obj.toString().getBytes("utf-8");
-            client.publish(topic, dataUbidotsString,1,false);
-        } catch (JSONException | UnsupportedEncodingException e) {
-            e.printStackTrace();
-        } catch (MqttPersistenceException e) {
-            e.printStackTrace();
-        } catch (MqttException e) {
-            e.printStackTrace();
-        }
+       Date date = new Date();
+       SimpleDateFormat sdf = new SimpleDateFormat("kk:mm");
+       String time = sdf.format(date);
+       JSONObject obj = new JSONObject();
+
+       try {
+
+           obj.put("Latitude", location.getLatitude());
+           obj.put("Longitude", location.getLongitude());
+
+         //  String a =
+           int sensorValue = (int) (Math.random()*49+1);
+
+           String variable       = "{\"" + variableLabel + "\": ";
+           String context = " {\"value\": "+ sensorValue + ", \"context\":";
+      //     String value        = "{\"" + sensorValue + ":  {\"lon"""+location.getLongitude()+"\":               }";
+String x = variable + context + obj +"}}";
+           System.out.print(x);
+
+           MqttMessage mqttMessage = new MqttMessage();
+           mqttMessage.setPayload(x.getBytes());
+
+           client.publish(topic, x.getBytes() , 1 ,false);
+       } catch (MqttException | JSONException e) {
+           e.printStackTrace();
+       }
+
+       System.out.println("veri gidiyor");
+
 
     }
 
@@ -232,11 +263,13 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     }
 
-    public JSONObject getJson() {
+    public JSONObject getJson(String line) {
         Date date = new Date();
         SimpleDateFormat sdf = new SimpleDateFormat("kk:mm");
         String time = sdf.format(date);
         Location location = null;
+
+        String [] toJson = line.split(" ");
 
         JSONObject obj = new JSONObject();
         try {
