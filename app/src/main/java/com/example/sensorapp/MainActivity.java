@@ -3,7 +3,11 @@ package com.example.sensorapp;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.location.Address;
 import android.location.Location;
 import android.location.LocationListener;
@@ -12,6 +16,8 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -46,7 +52,7 @@ import com.ubidots.*;
 public class MainActivity extends AppCompatActivity implements LocationListener {
 
     Button butonSensor;
-    Button buttonM;
+    TextView saglik;
     TextView konum;
     LocationManager locationManager;
     List<String> loglist = new ArrayList<String>();
@@ -64,8 +70,9 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     int qos=0;
 
-    double normalBolge = 40.002200;
-    double tehlikeliBolge = 40.002300;
+    double normalBolge = 40.002300;
+    double tehlikeliBolge = 40.002200;
+    double ikazBolge = 40.002100;
 
 
     MqttAndroidClient client;
@@ -76,7 +83,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
         butonSensor = findViewById(R.id.buton1);
         konum = findViewById(R.id.textView1);
-        buttonM =findViewById(R.id.buttonMqtt);
+        saglik = findViewById(R.id.textView2);
+
+        konum.setTextColor(Color.parseColor("#164897"));
+
 
 
 
@@ -95,13 +105,13 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
                     @Override
                     public void messageArrived(String topic, MqttMessage message) throws Exception {
-                        String incomingData = new String(message.getPayload());
+                      //  String incomingData = new String(message.getPayload());
 
                     }
 
                     @Override
                     public void deliveryComplete(IMqttDeliveryToken token) {
-                        Toast.makeText(MainActivity.this, "send data", Toast.LENGTH_SHORT).show();
+                      //  Toast.makeText(MainActivity.this, "send data", Toast.LENGTH_SHORT).show();
                     }
                 });
 
@@ -130,7 +140,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 @Override
                 public void onSuccess(IMqttToken asyncActionToken) {
                     // We are connected
-                    Toast.makeText(getApplicationContext(),"Bağlantı gerçekleşti.",Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getApplicationContext(),"connected",Toast.LENGTH_SHORT).show();
                     try {
 
                         client.subscribe("/v1.6/devices/demo/new-variable", 0);
@@ -145,7 +155,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 @Override
                 public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
                     // Something went wrong e.g. connection timeout or firewall problems
-                    Toast.makeText(getApplicationContext(),"Bağlantı gerçekleşemedi.",Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getApplicationContext(),"unconnected",Toast.LENGTH_SHORT).show();
                 }
             });
 
@@ -158,9 +168,11 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     void getLocation() {
      try {
+
             locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 6000, 1, this);
             locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 3600, 3600, this);
+
 
         } catch (SecurityException e) {
 
@@ -171,7 +183,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     @Override
     public void onLocationChanged(Location location) {
-        konum.setText("Current Location: " + location.getLatitude() + ", " + location.getLongitude());
+        String lng = new DecimalFormat("##.######").format(location.getLongitude());
+        String lat = new DecimalFormat("##.######").format(location.getLatitude());
+
+        konum.setText("Mevcut Konumunuz: " + lat + " , " + lng);
         getList(location);
         publish(location);
 
@@ -204,11 +219,66 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
            Double lati = Double.parseDouble(lat);
 
-           if(lati >= normalBolge && lati <= tehlikeliBolge){
+           if(lati <= tehlikeliBolge && lati >= ikazBolge ){
+               Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+               // Vibrate for 500 milliseconds
+               if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                   v.vibrate(VibrationEffect.createOneShot(3500, VibrationEffect.DEFAULT_AMPLITUDE));
 
+                   AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this, R.style.AlertDialogStyle).create();
 
+                   alertDialog.setTitle("TEHLİKE");
+                   alertDialog.setMessage("TEHLİKELİ BÖLGEDESİNİZ, UZAKLAŞIN");
+                   alertDialog.setIcon(R.drawable.radioactive);
+                   alertDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.RED));
 
+                   alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "ÇIKIŞ",
+                           new DialogInterface.OnClickListener() {
+                               public void onClick(DialogInterface dialog, int which) {
+                                   dialog.dismiss();
+                               }
+                           });
+
+                   alertDialog.show();
+               } else {
+                   //deprecated in API 26
+                 //  v.vibrate(500);
+               }}
+               else if(lati >= tehlikeliBolge && lati <= normalBolge){
+               AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this, R.style.AlertDialogStyle).create();
+
+               alertDialog.setTitle("DİKKAT");
+               alertDialog.setMessage("DİKKATLİ OLMALISINIZ");
+               alertDialog.setIcon(R.drawable.radioactive);
+               alertDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.YELLOW));
+               alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "ÇIKIŞ",
+                       new DialogInterface.OnClickListener() {
+                           public void onClick(DialogInterface dialog, int which) {
+                               dialog.dismiss();
+                           }
+                       });
+
+               alertDialog.show();
+               }
+               else if(lati >= normalBolge) {
+               AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this, R.style.AlertDialogStyle).create();
+
+               alertDialog.setTitle("NORMAL");
+               alertDialog.setMessage("GÜVENLİ BÖLGEDESİNİZ");
+               alertDialog.setIcon(R.drawable.radioactive);
+               alertDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.GREEN));
+               alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "ÇIKIŞ",
+                       new DialogInterface.OnClickListener() {
+                           public void onClick(DialogInterface dialog, int which) {
+                               dialog.dismiss();
+                           }
+                       });
+
+               alertDialog.show();
            }
+
+
+
 
 
 
@@ -237,7 +307,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         SimpleDateFormat sdf = new SimpleDateFormat("kk:mm");
         String time = sdf.format(date);
 
-        Toast.makeText(MainActivity.this, loglist.toString(), Toast.LENGTH_LONG).show();
+   //     Toast.makeText(MainActivity.this, loglist.toString(), Toast.LENGTH_LONG).show();
         if (loglist.size() == 6) {// you reach 6 values => send the SMS
             StringBuilder log = new StringBuilder();
             for (int j = 0; j < loglist.size(); j++) {
